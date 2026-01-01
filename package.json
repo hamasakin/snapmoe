@@ -1,0 +1,26 @@
+{
+  "name": "snapmoe",
+  "version": "2.6.5",
+  "description": "SnapMoe - 二次元图片收藏工具 - Cloudflare Worker + R2 + Supabase",
+  "private": true,
+  "scripts": {
+    "setup": "node -e \"console.log('请使用 scripts/common/setup.sh 或 setup.bat')\"",
+    "dev": "node -e \"console.log('请使用 scripts/common/dev.sh 或 dev.bat')\"",
+    "deploy:frontend": "node -e \"console.log('请使用 scripts/frontend/deploy.sh 或 deploy.bat')\"",
+    "deploy:worker": "node -e \"console.log('请使用 scripts/worker/deploy.sh 或 deploy.bat')\""
+  },
+  "keywords": [
+    "image-collection",
+    "cloudflare-worker",
+    "r2",
+    "supabase",
+    "react",
+    "userscript"
+  ],
+  "author": "",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": ""
+  }
+}
