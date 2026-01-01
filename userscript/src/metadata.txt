@@ -1,0 +1,9 @@
+// ==UserScript==
+// @name         SnapMoe - 二次元图片收藏助手
+// @version      2.6.6
+// @description  SnapMoe - 基于 Cloudflare Worker + R2 的二次元图片收藏工具
+// @match        *://*/*
+// @grant        GM_xmlhttpRequest
+// @grant        unsafeWindow
+// @run-at       document-end
+// ==/UserScript==

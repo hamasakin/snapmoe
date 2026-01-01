@@ -1,0 +1,32 @@
+{
+  "name": "snapmoe-userscript",
+  "version": "2.6.6",
+  "description": "SnapMoe - 基于 Cloudflare Worker + R2 的二次元图片收藏工具",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite build --watch --mode development",
+    "build": "vite build",
+    "preview": "vite preview",
+    "lint": "eslint src/**/*.js",
+    "lint:fix": "eslint src/**/*.js --fix",
+    "format": "prettier --write \"src/**/*.js\""
+  },
+  "keywords": [
+    "userscript",
+    "tampermonkey",
+    "image-collection",
+    "cloudflare",
+    "r2"
+  ],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "@eslint/js": "^9.18.0",
+    "eslint": "^9.18.0",
+    "globals": "^15.14.0",
+    "prettier": "^3.4.2",
+    "vite": "^5.4.11",
+    "vite-plugin-banner": "^0.8.0"
+  }
+}

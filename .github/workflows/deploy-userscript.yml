@@ -1,0 +1,173 @@
+name: Deploy Userscript to GitHub Pages
+
+on:
+  push:
+    branches:
+      - main
+      - master
+    paths:
+      - 'userscript/**'
+      - '.github/workflows/deploy-userscript.yml'
+  workflow_dispatch: # 允许手动触发
+
+# 设置 GitHub Pages 的权限
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# 允许一个并发部署
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
+jobs:
+  deploy-userscript:
+    name: Build and Deploy Userscript
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: userscript/package-lock.json
+
+      - name: Install dependencies
+        working-directory: userscript
+        run: npm ci
+
+      - name: Build userscript
+        working-directory: userscript
+        run: npm run build
+        env:
+          # 从 secrets 中读取环境变量（如果存在）
+          VITE_WORKER_URL: ${{ secrets.VITE_WORKER_URL }}
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+          VITE_WORKER_API_KEY: ${{ secrets.VITE_WORKER_API_KEY }}
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v4
+
+      - name: Prepare deployment directory
+        env:
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: |
+          mkdir -p deploy
+          cp userscript/dist/*.user.js deploy/
+          # 创建一个简单的 index.html 用于展示和下载
+          cat > deploy/index.html << EOF
+          <!DOCTYPE html>
+          <html lang="zh-CN">
+          <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>SnapMoe Userscript</title>
+            <style>
+              body {
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+                max-width: 800px;
+                margin: 0 auto;
+                padding: 20px;
+                line-height: 1.6;
+                background: #f5f5f5;
+              }
+              .container {
+                background: white;
+                padding: 30px;
+                border-radius: 8px;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+              }
+              h1 {
+                color: #333;
+                margin-top: 0;
+              }
+              .download-btn {
+                display: inline-block;
+                padding: 12px 24px;
+                background: #007bff;
+                color: white;
+                text-decoration: none;
+                border-radius: 4px;
+                margin: 10px 0;
+                transition: background 0.3s;
+              }
+              .download-btn:hover {
+                background: #0056b3;
+              }
+              .info {
+                background: #e7f3ff;
+                padding: 15px;
+                border-left: 4px solid #007bff;
+                margin: 20px 0;
+              }
+              code {
+                background: #f4f4f4;
+                padding: 2px 6px;
+                border-radius: 3px;
+                font-family: 'Courier New', monospace;
+              }
+            </style>
+          </head>
+          <body>
+            <div class="container">
+              <h1>SnapMoe Userscript</h1>
+              <p>基于 Cloudflare Worker + R2 的二次元图片收藏工具</p>
+              
+              <div class="info">
+                <strong>安装说明：</strong>
+                <ol>
+                  <li>确保已安装 <a href="https://www.tampermonkey.net/" target="_blank">Tampermonkey</a> 或类似的用户脚本管理器</li>
+                  <li>点击下方下载链接安装脚本</li>
+                  <li>脚本会自动更新到最新版本</li>
+                </ol>
+              </div>
+
+              <h2>下载</h2>
+              <a href="./snapmoe.user.js" class="download-btn" download>下载 SnapMoe.user.js</a>
+              
+              <h2>直接安装</h2>
+              <p>如果已安装 Tampermonkey，可以直接点击以下链接安装：</p>
+              <p><a href="./snapmoe.user.js">安装 SnapMoe.user.js</a></p>
+
+              <h2>版本信息</h2>
+              <p>最新版本：<code id="version">加载中...</code></p>
+              
+              <h2>更新日志</h2>
+              <p>查看 <a href="https://github.com/${GITHUB_REPOSITORY}/blob/main/userscript/README.md" target="_blank">README</a> 了解最新更新。</p>
+            </div>
+            
+            <script>
+              // 尝试从 userscript 文件中提取版本号
+              fetch('./snapmoe.user.js')
+                .then(r => r.text())
+                .then(text => {
+                  const match = text.match(/@version\s+([^\s]+)/);
+                  if (match) {
+                    document.getElementById('version').textContent = match[1];
+                  }
+                })
+                .catch(() => {
+                  document.getElementById('version').textContent = '未知';
+                });
+            </script>
+          </body>
+          </html>
+          EOF
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: deploy
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
