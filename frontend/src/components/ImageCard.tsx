@@ -1,10 +1,22 @@
-import { Trash2, ExternalLink, Tag as TagIcon } from "lucide-react";
+import {
+  Trash2,
+  ExternalLink,
+  Tag as TagIcon,
+  MoreVertical,
+  Maximize2,
+  HardDrive,
+} from "lucide-react";
 import type { Image, Tag } from "../lib/supabase";
-import { useDeleteImage, useAllTags, useUpdateImageTags, useCreateTag } from "../hooks/useImages";
+import {
+  useDeleteImage,
+  useAllTags,
+  useUpdateImageTags,
+  useCreateTag,
+} from "../hooks/useImages";
 import ConfirmDialog from "./ConfirmDialog";
 import LazyImage from "./LazyImage";
 import TagInput from "./TagInput";
-import { useState, memo, useCallback } from "react";
+import { useState, memo, useCallback, useRef, useEffect } from "react";
 
 interface ImageCardProps {
   image: Image;
@@ -19,6 +31,8 @@ function ImageCard({ image, index, onImageClick }: ImageCardProps) {
   const { data: allTags = [] } = useAllTags();
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [isEditingTags, setIsEditingTags] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
 
   const handleImageClick = useCallback(() => {
     if (onImageClick && index !== undefined) {
@@ -30,11 +44,6 @@ function ImageCard({ image, index, onImageClick }: ImageCardProps) {
     deleteImage.mutate(image.id);
   }, [deleteImage, image.id]);
 
-  const handleButtonClick = useCallback((e: React.MouseEvent) => {
-    e.stopPropagation();
-    setConfirmOpen(true);
-  }, []);
-
   const handleTagsChange = useCallback(
     async (newTags: Tag[]) => {
       const currentTagIds = (image.tags || []).map((t) => t.id);
@@ -42,7 +51,9 @@ function ImageCard({ image, index, onImageClick }: ImageCardProps) {
 
       // 找出需要添加和删除的tags
       const tagsToAdd = newTagIds.filter((id) => !currentTagIds.includes(id));
-      const tagsToRemove = currentTagIds.filter((id) => !newTagIds.includes(id));
+      const tagsToRemove = currentTagIds.filter(
+        (id) => !newTagIds.includes(id)
+      );
 
       await updateImageTags.mutateAsync({
         imageId: image.id,
@@ -60,17 +71,110 @@ function ImageCard({ image, index, onImageClick }: ImageCardProps) {
     [createTag]
   );
 
+  // 点击外部关闭菜单
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setMenuOpen(false);
+      }
+    };
+
+    if (menuOpen) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [menuOpen]);
+
+  const handleMenuToggle = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    setMenuOpen((prev) => !prev);
+  }, []);
+
+  const handleDeleteClick = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    setMenuOpen(false);
+    setConfirmOpen(true);
+  }, []);
+
   const isDeleting = deleteImage.isPending;
 
   return (
-    <div className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow">
-      <LazyImage
-        src={image.r2_url}
-        alt={image.title || "图片"}
-        width={image.width}
-        height={image.height}
-        onClick={onImageClick ? handleImageClick : undefined}
-      />
+    <div className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow relative">
+      {/* 图片区域，包含右上角操作按钮 */}
+      <div className="relative group">
+        <LazyImage
+          src={image.r2_url}
+          alt={image.title || "图片"}
+          width={image.width}
+          height={image.height}
+          onClick={onImageClick ? handleImageClick : undefined}
+        />
+        {/* 右上角操作按钮组 */}
+        <div className="absolute top-2 right-2 flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity z-10">
+          {/* 来源按钮 */}
+          <a
+            href={image.source_page_url || image.original_url}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={(e) => e.stopPropagation()}
+            className="p-2 bg-white/90 backdrop-blur-sm rounded-full shadow-md hover:bg-white hover:shadow-lg transition-all"
+            title="查看来源"
+          >
+            <ExternalLink className="w-4 h-4 text-gray-700" />
+          </a>
+          {/* 三点菜单按钮 */}
+          <div className="relative" ref={menuRef}>
+            <button
+              onClick={handleMenuToggle}
+              className={`p-2 bg-white/90 backdrop-blur-sm rounded-full shadow-md hover:bg-white hover:shadow-lg transition-all ${
+                menuOpen ? "bg-white shadow-lg" : ""
+              }`}
+              title="更多操作"
+            >
+              <MoreVertical className="w-4 h-4 text-gray-700" />
+            </button>
+            {/* 下拉菜单 */}
+            {menuOpen && (
+              <div className="absolute right-0 top-full mt-1 w-44 bg-white rounded-lg shadow-xl border border-gray-200 py-1 z-20 transition-all duration-200">
+                <ConfirmDialog
+                  open={confirmOpen}
+                  onOpenChange={(open) => {
+                    setConfirmOpen(open);
+                    if (!open) {
+                      setMenuOpen(false);
+                    }
+                  }}
+                  title="确定要删除这张图片吗？"
+                  confirmText="确定"
+                  cancelText="取消"
+                  onConfirm={handleDelete}
+                >
+                  <button
+                    onClick={handleDeleteClick}
+                    disabled={isDeleting}
+                    className="w-full px-4 py-2.5 text-left text-sm text-red-600 hover:bg-red-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2.5"
+                  >
+                    {isDeleting ? (
+                      <>
+                        <div className="w-4 h-4 border-2 border-red-600 border-t-transparent rounded-full animate-spin shrink-0" />
+                        <span>删除中...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Trash2 className="w-4 h-4 shrink-0" />
+                        <span>删除图片</span>
+                      </>
+                    )}
+                  </button>
+                </ConfirmDialog>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
       <div className="p-4">
         {/* Tags区域 */}
         <div className="mb-3">
@@ -120,48 +224,26 @@ function ImageCard({ image, index, onImageClick }: ImageCardProps) {
           )}
         </div>
 
-        <div className="flex flex-col gap-1 text-sm text-gray-600">
-          <p className="truncate">来源：{image.source_website}</p>
-          {image.width && image.height && (
-            <p>尺寸：{image.width} × {image.height}</p>
-          )}
-          {image.file_size && (
-            <p>大小：{(image.file_size / 1024 / 1024).toFixed(2)} MB</p>
-          )}
-        </div>
-      </div>
-      <div className="border-t border-gray-200 flex">
-        <a
-          href={image.source_page_url || image.original_url}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="flex-1 flex items-center justify-center gap-2 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
-        >
-          <ExternalLink className="w-4 h-4" />
-          来源
-        </a>
-        {deleteImage && (
-          <ConfirmDialog
-            open={confirmOpen}
-            onOpenChange={setConfirmOpen}
-            title="确定要删除这张图片吗？"
-            confirmText="确定"
-            cancelText="取消"
-            onConfirm={handleDelete}
-          >
-            <button
-              className="flex-1 flex items-center justify-center gap-2 py-3 text-sm text-red-600 hover:bg-red-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              disabled={isDeleting}
-              onClick={handleButtonClick}
-            >
-              {isDeleting ? (
-                <div className="w-4 h-4 border-2 border-red-600 border-t-transparent rounded-full animate-spin" />
-              ) : (
-                <Trash2 className="w-4 h-4" />
-              )}
-              删除
-            </button>
-          </ConfirmDialog>
+        {/* 图片信息 - 使用图标和横向布局 */}
+        {(image.width || image.file_size) && (
+          <div className="flex flex-wrap items-center gap-3 text-xs text-gray-500">
+            {image.width && image.height && (
+              <div className="flex items-center gap-1.5">
+                <Maximize2 className="w-3.5 h-3.5 shrink-0" />
+                <span className="font-medium">
+                  {image.width} × {image.height}
+                </span>
+              </div>
+            )}
+            {image.file_size && (
+              <div className="flex items-center gap-1.5">
+                <HardDrive className="w-3.5 h-3.5 shrink-0" />
+                <span className="font-medium">
+                  {(image.file_size / 1024 / 1024).toFixed(2)} MB
+                </span>
+              </div>
+            )}
+          </div>
         )}
       </div>
     </div>

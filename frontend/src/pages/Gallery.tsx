@@ -19,15 +19,15 @@ export default function Gallery() {
   const [lightboxIndex, setLightboxIndex] = useState(0);
   const loadMoreRef = useRef<HTMLDivElement>(null);
 
-  const { 
-    data, 
-    isLoading, 
-    error, 
-    fetchNextPage, 
-    hasNextPage, 
-    isFetchingNextPage 
-  } = useImages({ 
-    pageSize, 
+  const {
+    data,
+    isLoading,
+    error,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  } = useImages({
+    pageSize,
     website: selectedWebsites.length > 0 ? selectedWebsites : undefined,
     tags: selectedTags.length > 0 ? selectedTags : undefined,
   });
@@ -36,16 +36,17 @@ export default function Gallery() {
 
   // 使用 useMemo 避免不必要的数组重新创建
   const allImages = useMemo(
-    () => data?.pages.flatMap(page => page.items) || [],
+    () => data?.pages.flatMap((page) => page.items) || [],
     [data?.pages]
   );
 
   // 计算 Select 组件的选项和值
   const websiteOptions = useMemo(
-    () => websites?.map((site) => ({
-      label: `${site.domain} (${site.image_count})`,
-      value: site.domain,
-    })) || [],
+    () =>
+      websites?.map((site) => ({
+        label: `${site.domain} (${site.image_count})`,
+        value: site.domain,
+      })) || [],
     [websites]
   );
 
@@ -64,10 +65,11 @@ export default function Gallery() {
 
   // 计算 Tag Select 组件的选项和值
   const tagOptions = useMemo(
-    () => allTags?.map((tag) => ({
-      label: tag.name,
-      value: tag.id,
-    })) || [],
+    () =>
+      allTags?.map((tag) => ({
+        label: tag.name,
+        value: tag.id,
+      })) || [],
     [allTags]
   );
 
@@ -96,7 +98,7 @@ export default function Gallery() {
           fetchNextPage();
         }
       },
-      { threshold: 0.1, rootMargin: '200px' } // 提前 200px 开始加载
+      { threshold: 0.1, rootMargin: "200px" } // 提前 200px 开始加载
     );
 
     const currentRef = loadMoreRef.current;
@@ -131,7 +133,7 @@ export default function Gallery() {
           <div className="flex flex-col gap-4">
             <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 sm:gap-0">
               <h2 className="mb-0 text-xl sm:text-2xl lg:text-3xl font-semibold">
-                SnapMoe - 二次元图片收藏库
+                SnapMoe
               </h2>
               <div className="flex flex-col sm:flex-row gap-2">
                 <Select
@@ -148,28 +150,28 @@ export default function Gallery() {
                   styles={{
                     control: (base) => ({
                       ...base,
-                      minHeight: '32px',
+                      minHeight: "32px",
                     }),
                     valueContainer: (base) => ({
                       ...base,
-                      minHeight: '32px',
-                      padding: '0 8px',
+                      minHeight: "32px",
+                      padding: "0 8px",
                     }),
                     input: (base) => ({
                       ...base,
-                      margin: '0px',
+                      margin: "0px",
                     }),
                     indicatorsContainer: (base) => ({
                       ...base,
-                      height: '32px',
+                      height: "32px",
                     }),
                     multiValue: (base) => ({
                       ...base,
-                      fontSize: '12px',
+                      fontSize: "12px",
                     }),
                     multiValueLabel: (base) => ({
                       ...base,
-                      fontSize: '12px',
+                      fontSize: "12px",
                     }),
                   }}
                 />
@@ -187,28 +189,28 @@ export default function Gallery() {
                   styles={{
                     control: (base) => ({
                       ...base,
-                      minHeight: '32px',
+                      minHeight: "32px",
                     }),
                     valueContainer: (base) => ({
                       ...base,
-                      minHeight: '32px',
-                      padding: '0 8px',
+                      minHeight: "32px",
+                      padding: "0 8px",
                     }),
                     input: (base) => ({
                       ...base,
-                      margin: '0px',
+                      margin: "0px",
                     }),
                     indicatorsContainer: (base) => ({
                       ...base,
-                      height: '32px',
+                      height: "32px",
                     }),
                     multiValue: (base) => ({
                       ...base,
-                      fontSize: '12px',
+                      fontSize: "12px",
                     }),
                     multiValueLabel: (base) => ({
                       ...base,
-                      fontSize: '12px',
+                      fontSize: "12px",
                     }),
                   }}
                 />
@@ -225,16 +227,11 @@ export default function Gallery() {
             </div>
           ) : (
             <>
-              <ImageGrid 
-                images={allImages} 
-                onImageClick={handleImageClick}
-              />
-              
+              <ImageGrid images={allImages} onImageClick={handleImageClick} />
+
               {/* 滚动加载触发器 */}
               <div ref={loadMoreRef} className="text-center py-8">
-                {isFetchingNextPage && (
-                  <Loading size="large" />
-                )}
+                {isFetchingNextPage && <Loading size="large" />}
                 {!hasNextPage && allImages.length > 0 && (
                   <p className="text-gray-500 text-sm">已加载全部图片</p>
                 )}
@@ -242,7 +239,7 @@ export default function Gallery() {
             </>
           )}
         </div>
-        
+
         <Lightbox
           open={lightboxOpen}
           close={() => setLightboxOpen(false)}
