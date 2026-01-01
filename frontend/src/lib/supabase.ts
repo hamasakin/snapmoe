@@ -21,6 +21,7 @@ export interface Image {
   mime_type?: string
   created_at: string
   updated_at: string
+  tags?: Tag[]
 }
 
 export interface Tag {

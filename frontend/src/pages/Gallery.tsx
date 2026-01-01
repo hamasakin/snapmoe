@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import Select from "react-select";
-import { useImages, useWebsites } from "../hooks/useImages";
+import { useImages, useWebsites, useAllTags } from "../hooks/useImages";
 import ImageGrid from "../components/ImageGrid";
 import Loading from "../components/Loading";
 import Lightbox from "yet-another-react-lightbox";
@@ -14,6 +14,7 @@ import "yet-another-react-lightbox/plugins/thumbnails.css";
 export default function Gallery() {
   const [pageSize] = useState(20);
   const [selectedWebsites, setSelectedWebsites] = useState<string[]>([]);
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [lightboxIndex, setLightboxIndex] = useState(0);
   const loadMoreRef = useRef<HTMLDivElement>(null);
@@ -25,8 +26,13 @@ export default function Gallery() {
     fetchNextPage, 
     hasNextPage, 
     isFetchingNextPage 
-  } = useImages({ pageSize, website: selectedWebsites.length > 0 ? selectedWebsites : undefined });
+  } = useImages({ 
+    pageSize, 
+    website: selectedWebsites.length > 0 ? selectedWebsites : undefined,
+    tags: selectedTags.length > 0 ? selectedTags : undefined,
+  });
   const { data: websites, isLoading: websitesLoading } = useWebsites();
+  const { data: allTags, isLoading: tagsLoading } = useAllTags();
 
   // 使用 useMemo 避免不必要的数组重新创建
   const allImages = useMemo(
@@ -55,6 +61,26 @@ export default function Gallery() {
       };
     });
   }, [selectedWebsites, websites]);
+
+  // 计算 Tag Select 组件的选项和值
+  const tagOptions = useMemo(
+    () => allTags?.map((tag) => ({
+      label: tag.name,
+      value: tag.id,
+    })) || [],
+    [allTags]
+  );
+
+  const selectedTagValues = useMemo(() => {
+    if (selectedTags.length === 0) return undefined;
+    return selectedTags.map((tagId) => {
+      const tagInfo = allTags?.find((t) => t.id === tagId);
+      return {
+        label: tagInfo?.name || tagId,
+        value: tagId,
+      };
+    });
+  }, [selectedTags, allTags]);
 
   // 使用 useCallback 缓存回调函数
   const handleImageClick = useCallback((index: number) => {
@@ -102,49 +128,92 @@ export default function Gallery() {
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* 固定头部 - 标题和筛选器区域 */}
         <div className="shrink-0 px-3 sm:px-6 lg:px-8 py-4 sm:py-6 bg-white border-b border-gray-200">
-          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 sm:gap-0">
-            <h2 className="mb-0 text-xl sm:text-2xl lg:text-3xl font-semibold">
-              SnapMoe - 二次元图片收藏库
-            </h2>
-            <Select
-              className="w-full sm:w-48 lg:w-56"
-              placeholder="筛选网站"
-              isMulti
-              isClearable
-              isLoading={websitesLoading}
-              onChange={(options) => {
-                setSelectedWebsites(options?.map((opt) => opt.value) || []);
-              }}
-              value={selectedWebsiteValues}
-              options={websiteOptions}
-              styles={{
-                control: (base) => ({
-                  ...base,
-                  minHeight: '32px',
-                }),
-                valueContainer: (base) => ({
-                  ...base,
-                  minHeight: '32px',
-                  padding: '0 8px',
-                }),
-                input: (base) => ({
-                  ...base,
-                  margin: '0px',
-                }),
-                indicatorsContainer: (base) => ({
-                  ...base,
-                  height: '32px',
-                }),
-                multiValue: (base) => ({
-                  ...base,
-                  fontSize: '12px',
-                }),
-                multiValueLabel: (base) => ({
-                  ...base,
-                  fontSize: '12px',
-                }),
-              }}
-            />
+          <div className="flex flex-col gap-4">
+            <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 sm:gap-0">
+              <h2 className="mb-0 text-xl sm:text-2xl lg:text-3xl font-semibold">
+                SnapMoe - 二次元图片收藏库
+              </h2>
+              <div className="flex flex-col sm:flex-row gap-2">
+                <Select
+                  className="w-full sm:w-48 lg:w-56"
+                  placeholder="筛选网站"
+                  isMulti
+                  isClearable
+                  isLoading={websitesLoading}
+                  onChange={(options) => {
+                    setSelectedWebsites(options?.map((opt) => opt.value) || []);
+                  }}
+                  value={selectedWebsiteValues}
+                  options={websiteOptions}
+                  styles={{
+                    control: (base) => ({
+                      ...base,
+                      minHeight: '32px',
+                    }),
+                    valueContainer: (base) => ({
+                      ...base,
+                      minHeight: '32px',
+                      padding: '0 8px',
+                    }),
+                    input: (base) => ({
+                      ...base,
+                      margin: '0px',
+                    }),
+                    indicatorsContainer: (base) => ({
+                      ...base,
+                      height: '32px',
+                    }),
+                    multiValue: (base) => ({
+                      ...base,
+                      fontSize: '12px',
+                    }),
+                    multiValueLabel: (base) => ({
+                      ...base,
+                      fontSize: '12px',
+                    }),
+                  }}
+                />
+                <Select
+                  className="w-full sm:w-48 lg:w-56"
+                  placeholder="筛选标签"
+                  isMulti
+                  isClearable
+                  isLoading={tagsLoading}
+                  onChange={(options) => {
+                    setSelectedTags(options?.map((opt) => opt.value) || []);
+                  }}
+                  value={selectedTagValues}
+                  options={tagOptions}
+                  styles={{
+                    control: (base) => ({
+                      ...base,
+                      minHeight: '32px',
+                    }),
+                    valueContainer: (base) => ({
+                      ...base,
+                      minHeight: '32px',
+                      padding: '0 8px',
+                    }),
+                    input: (base) => ({
+                      ...base,
+                      margin: '0px',
+                    }),
+                    indicatorsContainer: (base) => ({
+                      ...base,
+                      height: '32px',
+                    }),
+                    multiValue: (base) => ({
+                      ...base,
+                      fontSize: '12px',
+                    }),
+                    multiValueLabel: (base) => ({
+                      ...base,
+                      fontSize: '12px',
+                    }),
+                  }}
+                />
+              </div>
+            </div>
           </div>
         </div>
 
@@ -181,7 +250,6 @@ export default function Gallery() {
           slides={allImages.map((image) => ({
             src: image.r2_url,
             alt: image.title || "图片",
-            title: image.title || undefined,
             description: image.source_website
               ? `来源：${image.source_website}`
               : undefined,
