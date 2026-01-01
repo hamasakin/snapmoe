@@ -1,4 +1,32 @@
-# React + TypeScript + Vite
+# Pic Collect - Frontend
+
+图片收藏系统的前端界面。
+
+## 环境变量配置
+
+创建 `.env` 文件（参考 `.env.example`）：
+
+```env
+# Supabase 配置
+VITE_SUPABASE_URL=https://your-project.supabase.co
+VITE_SUPABASE_ANON_KEY=your-anon-key
+```
+
+**注意**：前端只负责展示图片，上传功能由 UserScript 处理，因此不需要配置 Worker 相关的环境变量。
+
+## 功能说明
+
+### 删除功能
+
+删除图片时会：
+1. 先通过 Cloudflare Worker 删除 R2 文件
+2. 再通过 Supabase Edge Function 删除数据库记录
+
+需要确保以下服务已部署：
+- **Cloudflare Worker**: 处理 R2 文件的上传和删除
+- **Supabase Edge Function** (`delete-image`): 处理数据库记录的删除
+
+## React + TypeScript + Vite
 
 This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
 

@@ -1,122 +1,96 @@
-import { supabase } from '../lib/supabase'
-import { uploadFromUrlToR2, deleteFromR2 } from '../lib/r2'
+import { supabase } from "../lib/supabase";
 
 export const imagesAPI = {
   /**
-   * 获取图片列表
+   * 获取图片列表（支持分页和无限滚动）
    */
   async getImages(params: {
-    page?: number
-    pageSize?: number
-    website?: string
+    page?: number;
+    offset?: number;
+    pageSize?: number;
+    website?: string | string[];
   }) {
-    const { page = 1, pageSize = 20, website } = params
-    const from = (page - 1) * pageSize
-    const to = from + pageSize - 1
+    const { page, offset, pageSize = 20, website } = params;
+    
+    // 优先使用 offset（无限滚动），否则使用 page（向后兼容）
+    const from = offset !== undefined ? offset : (page ? (page - 1) * pageSize : 0);
+    const to = from + pageSize - 1;
 
     let query = supabase
-      .from('images')
-      .select('*', { count: 'exact' })
-      .order('created_at', { ascending: false })
-      .range(from, to)
+      .from("images")
+      .select("*", { count: "exact" })
+      .order("created_at", { ascending: false })
+      .range(from, to);
 
     if (website) {
-      query = query.eq('source_website', website)
+      if (Array.isArray(website) && website.length > 0) {
+        // 支持多个网站筛选
+        query = query.in("source_website", website);
+      } else if (typeof website === "string") {
+        // 向后兼容单个网站筛选
+        query = query.eq("source_website", website);
+      }
     }
 
-    const { data, error, count } = await query
+    const { data, error, count } = await query;
 
-    if (error) throw error
+    if (error) throw error;
 
     return {
       items: data || [],
       total: count || 0,
-      page,
-      pageSize
-    }
+      page: page || Math.floor(from / pageSize) + 1,
+      pageSize,
+    };
   },
 
   /**
-   * 上传图片（从 URL）
-   */
-  async uploadImageFromUrl(imageData: {
-    original_url: string
-    source_website: string
-    source_page_url?: string
-    title?: string
-  }) {
-    // 1. 检查是否已存在
-    const { data: existing } = await supabase
-      .from('images')
-      .select('*')
-      .eq('original_url', imageData.original_url)
-      .single()
-
-    if (existing) {
-      return existing
-    }
-
-    // 2. 下载并上传到 R2
-    const r2Result = await uploadFromUrlToR2(imageData.original_url)
-
-    // 3. 检查哈希去重
-    const { data: existingHash } = await supabase
-      .from('images')
-      .select('*')
-      .eq('file_hash', r2Result.fileHash)
-      .single()
-
-    if (existingHash) {
-      return existingHash
-    }
-
-    // 4. 保存元数据到 Supabase
-    const { data: newImage, error } = await supabase
-      .from('images')
-      .insert({
-        original_url: imageData.original_url,
-        r2_url: r2Result.r2Url,
-        r2_path: r2Result.r2Path,
-        source_website: imageData.source_website,
-        source_page_url: imageData.source_page_url,
-        title: imageData.title,
-        width: r2Result.width,
-        height: r2Result.height,
-        file_size: r2Result.fileSize,
-        file_hash: r2Result.fileHash,
-        mime_type: r2Result.mimeType
-      })
-      .select()
-      .single()
-
-    if (error) throw error
-
-    return newImage
-  },
-
-  /**
-   * 删除图片
+   * 删除图片（通过 file_hash）
+   * 只删除数据库记录，不删除 R2 文件
    */
   async deleteImage(imageId: string) {
-    // 1. 获取图片信息
+    // 1. 获取图片的 file_hash
     const { data: image, error: fetchError } = await supabase
-      .from('images')
-      .select('r2_path')
-      .eq('id', imageId)
-      .single()
+      .from("images")
+      .select("file_hash")
+      .eq("id", imageId)
+      .single();
 
-    if (fetchError) throw fetchError
+    if (fetchError) throw fetchError;
+    if (!image) throw new Error("图片不存在");
 
-    // 2. 从 R2 删除文件
-    await deleteFromR2(image.r2_path)
+    const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
+    const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-    // 3. 从数据库删除
-    const { error: deleteError } = await supabase
-      .from('images')
-      .delete()
-      .eq('id', imageId)
+    if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+      throw new Error("缺少 Supabase 配置");
+    }
 
-    if (deleteError) throw deleteError
+    // 2. 调用 Edge Function 删除数据库记录（使用 file_hash）
+    const edgeFunctionUrl = `${SUPABASE_URL}/functions/v1/delete-image`;
+    const edgeResponse = await fetch(edgeFunctionUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        apikey: SUPABASE_ANON_KEY,
+        Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+      },
+      body: JSON.stringify({
+        file_hash: image.file_hash,
+      }),
+    });
+
+    if (!edgeResponse.ok) {
+      const errorData = await edgeResponse
+        .json()
+        .catch(() => ({ error: "删除失败" }));
+      throw new Error(errorData.error || "Edge Function 调用失败");
+    }
+
+    const edgeResult = await edgeResponse.json();
+    if (!edgeResult.success) {
+      throw new Error(edgeResult.error || "删除数据库记录失败");
+    }
   },
 
   /**
@@ -124,22 +98,22 @@ export const imagesAPI = {
    */
   async updateImage(imageId: string, data: { title?: string }) {
     const { error } = await supabase
-      .from('images')
+      .from("images")
       .update(data)
-      .eq('id', imageId)
+      .eq("id", imageId);
 
-    if (error) throw error
-  }
-}
+    if (error) throw error;
+  },
+};
 
 export const websitesAPI = {
   async getWebsites() {
     const { data, error } = await supabase
-      .from('websites')
-      .select('*')
-      .order('image_count', { ascending: false })
+      .from("websites")
+      .select("*")
+      .order("image_count", { ascending: false });
 
-    if (error) throw error
-    return data
-  }
-}
+    if (error) throw error;
+    return data;
+  },
+};
