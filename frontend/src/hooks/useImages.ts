@@ -6,7 +6,6 @@ import {
 } from "@tanstack/react-query";
 import { imagesAPI, websitesAPI, tagsAPI } from "../services/images";
 import { toast } from "sonner";
-import type { Tag } from "../lib/supabase";
 
 export function useImages(params: {
   pageSize?: number;
