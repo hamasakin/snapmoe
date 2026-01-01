@@ -15,7 +15,6 @@ permissions:
   contents: read
   pages: write
   id-token: write
-  administration: write # 需要此权限来自动启用 Pages
 
 # 允许一个并发部署
 concurrency:
