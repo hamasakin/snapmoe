@@ -2,6 +2,8 @@ node_modules
 .claude/
 .mcp/
 .vscode/
+
+# Environment files
 .env
 .env.local
 .env.development.local
@@ -10,4 +12,15 @@ node_modules
 .env.development
 .env.test
 .env.production
-.env.local
+
+# Vercel
+.vercel
+
+# Secrets and sensitive files
+*secret*
+*credential*
+*.pem
+*.key
+
+# Editor
+.cursor/

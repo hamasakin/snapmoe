@@ -118,7 +118,23 @@ snapmoe/
 
 ## 部署
 
-### 部署前端到 Vercel
+### 🚀 自动部署（推荐）
+
+本项目已配置 GitHub Actions，每次推送代码到 `main` 或 `master` 分支时自动部署：
+- ✅ Frontend 自动部署到 Vercel
+- ✅ Worker 自动部署到 Cloudflare
+- ✅ Supabase Functions 自动部署（可选）
+
+**配置步骤：**
+1. Fork 或 Clone 本项目到你的 GitHub
+2. 在 GitHub 仓库设置中添加必需的 Secrets
+3. 推送代码，自动触发部署
+
+详细配置指南：📖 [docs/CICD-SETUP.md](docs/CICD-SETUP.md)
+
+### 手动部署
+
+#### 部署前端到 Vercel
 
 ```bash
 cd frontend
@@ -132,7 +148,7 @@ cd frontend
 
 详见 [frontend/DEPLOY.md](frontend/DEPLOY.md)
 
-### 部署 Worker 到 Cloudflare
+#### 部署 Worker 到 Cloudflare
 
 ```bash
 cd worker
