@@ -6,8 +6,8 @@ on:
       - main
       - master
     paths:
-      - 'userscript/**'
-      - '.github/workflows/deploy-userscript.yml'
+      - "userscript/**"
+      - ".github/workflows/deploy-userscript.yml"
   workflow_dispatch: # 允许手动触发
 
 # 设置 GitHub Pages 的权限
@@ -15,6 +15,7 @@ permissions:
   contents: read
   pages: write
   id-token: write
+  administration: write # 需要此权限来自动启用 Pages
 
 # 允许一个并发部署
 concurrency:
@@ -28,7 +29,7 @@ jobs:
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -56,6 +57,8 @@ jobs:
 
       - name: Setup Pages
         uses: actions/configure-pages@v4
+        with:
+          enablement: true # 自动启用 GitHub Pages（如果尚未启用）
 
       - name: Prepare deployment directory
         env:
