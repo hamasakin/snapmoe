@@ -22,12 +22,17 @@ function validateConfig() {
     warnings.push("⚠️ SUPABASE_URL 未配置");
   }
 
-  if (!SUPABASE_ANON_KEY || SUPABASE_ANON_KEY.includes("your-supabase-anon-key")) {
+  if (
+    !SUPABASE_ANON_KEY ||
+    SUPABASE_ANON_KEY.includes("your-supabase-anon-key")
+  ) {
     warnings.push("⚠️ SUPABASE_ANON_KEY 未配置");
   }
 
   if (!WORKER_API_KEY) {
-    warnings.push("⚠️ WORKER_API_KEY 未配置（如果 Worker 需要身份验证可能会失败）");
+    warnings.push(
+      "⚠️ WORKER_API_KEY 未配置（如果 Worker 需要身份验证可能会失败）"
+    );
   }
 
   if (warnings.length > 0) {
@@ -487,6 +492,7 @@ style.textContent = `
     z-index: 999999;
     display: flex;
     align-items: center;
+    justify-content: center;
     gap: 6px;
     color: white;
     padding: 8px 16px;
@@ -494,8 +500,21 @@ style.textContent = `
     font-size: 14px;
     font-family: system-ui, -apple-system, sans-serif;
     user-select: none;
-    transition: opacity 0.2s ease, transform 0.2s ease;
+    transition: opacity 0.2s ease, transform 0.2s ease, background 0.2s ease;
     pointer-events: auto;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+    box-sizing: border-box;
+    white-space: nowrap;
+  }
+
+  /* 图标模式 */
+  .snapmoe-button.icon-mode {
+    padding: 0;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    font-size: 12px;
+    gap: 0;
   }
 
   /* 未收藏按钮样式 - 默认隐藏 */
@@ -508,7 +527,8 @@ style.textContent = `
   }
 
   /* 悬停时显示未收藏按钮 */
-  .snapmoe-button.not-collected.hover {
+  .snapmoe-button.not-collected.hover,
+  .snapmoe-button.not-collected:hover {
     opacity: 1;
     transform: translateY(0);
     pointer-events: auto;
@@ -782,36 +802,57 @@ function showConfirmModal(options) {
   });
 }
 
-function createButton(isCollected = false) {
+function createButton(isCollected = false, isIconMode = false) {
   const btn = document.createElement("div");
   btn.className = `snapmoe-button ${
     isCollected ? "collected" : "not-collected"
-  }`;
-  btn.innerHTML = isCollected ? "✅ 已收藏" : "⭐ 收藏";
+  } ${isIconMode ? "icon-mode" : ""}`;
+
+  if (isIconMode) {
+    btn.innerHTML = isCollected ? "✅" : "⭐";
+    btn.title = isCollected ? "已收藏 (右键取消)" : "点击收藏";
+  } else {
+    btn.innerHTML = isCollected ? "✅ 已收藏" : "⭐ 收藏";
+  }
   return btn;
 }
 
-function showButton(img) {
-  // 过滤小图标
-  if (img.naturalWidth < 100 || img.naturalHeight < 100) {
-    return;
+/**
+ * 计算按钮位置
+ */
+function getButtonPosition(img, button) {
+  const rect = img.getBoundingClientRect();
+  const isIconMode = button.classList.contains("icon-mode");
+
+  let left, top;
+  if (isIconMode) {
+    // 右上角
+    left = rect.right + window.scrollX - 16 - 5;
+    top = rect.top + window.scrollY + 5;
+  } else {
+    // 左上角
+    left = rect.left + window.scrollX + 10;
+    top = rect.top + window.scrollY + 10;
   }
 
-  // 调试日志
-  console.log(
-    "[SnapMoe] 显示按钮，图片尺寸:",
-    img.naturalWidth,
-    "x",
-    img.naturalHeight
-  );
+  return { left, top };
+}
+
+function showButton(img) {
+  // 获取当前显示的尺寸，而不是原始尺寸
+  const rect = img.getBoundingClientRect();
+
+  // 过滤极其小的图片（如 1x1 像素追踪、小图标等）
+  if (rect.width < 32 || rect.height < 32) {
+    return;
+  }
 
   // 如果当前图片已经有按钮了，更新位置并返回
   let button = imageButtons.get(img);
   if (button && document.body.contains(button)) {
-    // 更新按钮位置（防止滚动后位置错乱）
-    const rect = img.getBoundingClientRect();
-    button.style.left = `${rect.left + window.scrollX + 10}px`;
-    button.style.top = `${rect.top + window.scrollY + 10}px`;
+    const pos = getButtonPosition(img, button);
+    button.style.left = `${pos.left}px`;
+    button.style.top = `${pos.top}px`;
     return;
   }
 
@@ -819,21 +860,16 @@ function showButton(img) {
   const cleanImgUrl = img.src.split("?")[0];
   const isCollected = isImageCollected(img.src);
 
-  console.log("[SnapMoe] 图片收藏状态:", {
-    url: cleanImgUrl,
-    isCollected: isCollected,
-    inCache: collectedImagesMap.has(cleanImgUrl),
-  });
+  // 判断是否使用图标模式：宽度或高度小于 160px
+  const isIconMode = rect.width < 160 || rect.height < 160;
 
-  button = createButton(isCollected);
+  button = createButton(isCollected, isIconMode);
   // 将按钮与图片关联
   imageButtons.set(img, button);
 
-  const rect = img.getBoundingClientRect();
-
-  // 设置按钮位置
-  button.style.left = `${rect.left + window.scrollX + 10}px`;
-  button.style.top = `${rect.top + window.scrollY + 10}px`;
+  const pos = getButtonPosition(img, button);
+  button.style.left = `${pos.left}px`;
+  button.style.top = `${pos.top}px`;
 
   // 绑定点击事件
   setupButtonEvents(button, img, isCollected);
@@ -853,20 +889,23 @@ function setupButtonEvents(button, img, isCollected) {
   // 清除之前的事件
   button.onclick = null;
   button.oncontextmenu = null;
+  const isIconMode = button.classList.contains("icon-mode");
 
   if (!isCollected) {
     // 未收藏状态：点击收藏
     button.onclick = async () => {
       // 显示 loading 状态
-      button.className = "snapmoe-button loading";
-      button.innerHTML = '<span class="spinner">⏳</span> 收藏中...';
+      button.className = `snapmoe-button loading ${isIconMode ? "icon-mode" : ""}`;
+      button.innerHTML = isIconMode
+        ? '<span class="spinner">⏳</span>'
+        : '<span class="spinner">⏳</span> 收藏中...';
 
       const result = await uploadImage(img.src);
 
       if (result.success) {
         // 收藏成功，更新为已收藏状态
-        button.className = "snapmoe-button collected";
-        button.innerHTML = "✅ 已收藏";
+        button.className = `snapmoe-button collected ${isIconMode ? "icon-mode" : ""}`;
+        button.innerHTML = isIconMode ? "✅" : "✅ 已收藏";
         button.style.background =
           "linear-gradient(135deg, #11998e 0%, #38ef7d 100%)";
 
@@ -877,15 +916,15 @@ function setupButtonEvents(button, img, isCollected) {
         startVisibilityCheck();
       } else {
         // 收藏失败
-        button.className = "snapmoe-button not-collected";
-        button.innerHTML = "❌ 失败";
+        button.className = `snapmoe-button not-collected ${isIconMode ? "icon-mode" : ""}`;
+        button.innerHTML = isIconMode ? "❌" : "❌ 失败";
         button.style.background =
           "linear-gradient(135deg, #eb3349 0%, #f45c43 100%)";
 
         // 1.5秒后恢复为未收藏状态
         setTimeout(() => {
-          button.className = "snapmoe-button not-collected";
-          button.innerHTML = "⭐ 收藏";
+          button.className = `snapmoe-button not-collected ${isIconMode ? "icon-mode" : ""}`;
+          button.innerHTML = isIconMode ? "⭐" : "⭐ 收藏";
           button.style.background = "";
         }, 1500);
       }
@@ -918,21 +957,23 @@ function setupButtonEvents(button, img, isCollected) {
       }
 
       // 显示删除中状态
-      button.className = "snapmoe-button loading";
-      button.innerHTML = '<span class="spinner">⏳</span> 删除中...';
+      button.className = `snapmoe-button loading ${isIconMode ? "icon-mode" : ""}`;
+      button.innerHTML = isIconMode
+        ? '<span class="spinner">⏳</span>'
+        : '<span class="spinner">⏳</span> 删除中...';
 
       const result = await deleteImage(img.src);
 
       if (result.success) {
         // 删除成功，显示提示后更新为未收藏状态
-        button.innerHTML = "🗑️ 已删除";
+        button.innerHTML = isIconMode ? "🗑️" : "🗑️ 已删除";
         button.style.background =
           "linear-gradient(135deg, #eb3349 0%, #f45c43 100%)";
 
         setTimeout(() => {
           // 更新为未收藏状态
-          button.className = "snapmoe-button not-collected";
-          button.innerHTML = "⭐ 收藏";
+          button.className = `snapmoe-button not-collected ${isIconMode ? "icon-mode" : ""}`;
+          button.innerHTML = isIconMode ? "⭐" : "⭐ 收藏";
           button.style.background = "";
 
           // 重新绑定事件为未收藏状态的事件
@@ -942,13 +983,13 @@ function setupButtonEvents(button, img, isCollected) {
         }, 1500);
       } else {
         // 删除失败，恢复已收藏状态
-        button.className = "snapmoe-button collected";
-        button.innerHTML = "❌ 删除失败";
+        button.className = `snapmoe-button collected ${isIconMode ? "icon-mode" : ""}`;
+        button.innerHTML = isIconMode ? "❌" : "❌ 删除失败";
         button.style.background =
           "linear-gradient(135deg, #eb3349 0%, #f45c43 100%)";
 
         setTimeout(() => {
-          button.innerHTML = "✅ 已收藏";
+          button.innerHTML = isIconMode ? "✅" : "✅ 已收藏";
           button.style.background =
             "linear-gradient(135deg, #11998e 0%, #38ef7d 100%)";
         }, 1500);
@@ -959,7 +1000,9 @@ function setupButtonEvents(button, img, isCollected) {
 
     // 确保样式正确
     button.style.cursor = "pointer";
-    button.title = "左键：查看状态 | 右键：删除";
+    button.title = isIconMode
+      ? "已收藏 (右键取消)"
+      : "左键：查看状态 | 右键：删除";
   }
 }
 
@@ -1017,9 +1060,9 @@ function isImageVisible(img) {
 function updateButtonPositions() {
   for (const [img, button] of imageButtons.entries()) {
     if (button && document.body.contains(button) && isImageVisible(img)) {
-      const rect = img.getBoundingClientRect();
-      button.style.left = `${rect.left + window.scrollX + 10}px`;
-      button.style.top = `${rect.top + window.scrollY + 10}px`;
+      const pos = getButtonPosition(img, button);
+      button.style.left = `${pos.left}px`;
+      button.style.top = `${pos.top}px`;
     }
   }
 }
@@ -1092,8 +1135,9 @@ function scanAndShowCollectedImages() {
   });
 
   function processImage(img) {
-    // 过滤小图标
-    if (img.naturalWidth < 100 || img.naturalHeight < 100) {
+    const rect = img.getBoundingClientRect();
+    // 过滤极其小的图片
+    if (rect.width < 32 || rect.height < 32) {
       return;
     }
 
@@ -1101,7 +1145,7 @@ function scanAndShowCollectedImages() {
     const cleanImgUrl = img.src.split("?")[0];
     if (collectedImagesMap.has(cleanImgUrl)) {
       // 为已收藏的图片创建按钮
-      showButton(img, true);
+      showButton(img);
       collectedCount++;
     }
   }
@@ -1224,13 +1268,14 @@ function observeNewImages() {
  * 检查图片是否已收藏，如果是则显示按钮
  */
 function checkAndShowButton(img) {
-  if (img.naturalWidth < 100 || img.naturalHeight < 100) {
+  const rect = img.getBoundingClientRect();
+  if (rect.width < 32 || rect.height < 32) {
     return;
   }
 
   const cleanImgUrl = img.src.split("?")[0];
   if (collectedImagesMap.has(cleanImgUrl)) {
-    showButton(img, true);
+    showButton(img);
   }
 }
 
